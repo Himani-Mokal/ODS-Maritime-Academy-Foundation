@@ -2,7 +2,8 @@ from flask import Flask, render_template, request, session, g, redirect, url_for
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 import os
-
+from datetime import datetime
+from database.models import get_admin_by_username, create_admin
 # --- Blueprints (each file handles one section of the website) ---
 from routes.courses import courses_bp
 from routes.templates import templates_bp
@@ -34,6 +35,23 @@ app.register_blueprint(certificates_gen_bp)
 app.register_blueprint(verify_bp)
 app.register_blueprint(auth_bp)
 
+def ensure_bootstrap_admin():
+    username = os.environ.get("BOOTSTRAP_ADMIN_USER", "").strip()
+    password = os.environ.get("BOOTSTRAP_ADMIN_PASSWORD", "").strip()
+    email = os.environ.get("BOOTSTRAP_ADMIN_EMAIL", "admin@example.com").strip()
+    if not username or not password:
+        return
+    if get_admin_by_username(username) is None:
+        create_admin(
+            username,
+            email,
+            generate_password_hash(password),
+            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        )
+
+# after run_schema_migrations()
+run_schema_migrations()
+ensure_bootstrap_admin()
 
 @app.before_request
 def load_logged_in_admin():
