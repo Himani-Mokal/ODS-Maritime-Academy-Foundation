@@ -4,6 +4,7 @@ from werkzeug.utils import secure_filename
 import os
 from datetime import datetime
 from database.models import get_admin_by_username, create_admin
+from database.db import run_schema_migrations
 # --- Blueprints (each file handles one section of the website) ---
 from routes.courses import courses_bp
 from routes.templates import templates_bp
@@ -51,8 +52,28 @@ def ensure_bootstrap_admin():
 
 # after run_schema_migrations()
 run_schema_migrations()
-ensure_bootstrap_admin()
+def ensure_bootstrap_admin():
+    username = os.environ.get("BOOTSTRAP_ADMIN_USER", "").strip()
+    password = os.environ.get("BOOTSTRAP_ADMIN_PASSWORD", "").strip()
+    email = os.environ.get("BOOTSTRAP_ADMIN_EMAIL", "admin@example.com").strip()
 
+    if not username or not password:
+        print("BOOTSTRAP: skipped (USER or PASSWORD env not set)")
+        return
+
+    existing = get_admin_by_username(username)
+    if existing is not None:
+        print(f"BOOTSTRAP: admin '{username}' already exists")
+        return
+
+    create_admin(
+        username,
+        email,
+        generate_password_hash(password),
+        datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    )
+    print(f"BOOTSTRAP: created admin '{username}'")
+    ensure_bootstrap_admin()
 @app.before_request
 def load_logged_in_admin():
     admin_id = session.get("admin_id")

@@ -631,10 +631,10 @@ def get_admin_by_id(admin_id):
 def create_admin(username, email, password_hash, created_at):
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("""
-        INSERT INTO admins(username, email, password, created_at)
-        VALUES(?,?,?,?)
-    """, (username, email, password_hash, created_at))
+    cursor.execute(
+        "INSERT INTO admins(username, email, password, created_at) VALUES(?,?,?,?)",
+        (username, email, password_hash, created_at),
+    )
     conn.commit()
     conn.close()
 
