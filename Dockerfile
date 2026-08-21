@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.11-slim-bookworm
 
 # System libraries needed by WeasyPrint (used for SVG/PDF certificate rendering)
 RUN apt-get update && apt-get install -y \
