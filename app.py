@@ -3,9 +3,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 import os
 from datetime import datetime
-from database.models import get_admin_by_username, create_admin
-from database.db import run_schema_migrations
-# --- Blueprints (each file handles one section of the website) ---
+
 from routes.courses import courses_bp
 from routes.templates import templates_bp
 from routes.participants import participants_bp
@@ -19,6 +17,8 @@ from database.models import (
     update_admin_password,
     update_admin_profile,
     get_recent_certificates,
+    get_admin_by_username,
+    create_admin,
 )
 from modules.auth_decorators import login_required
 from database.db import run_schema_migrations
@@ -26,44 +26,36 @@ from database.db import run_schema_migrations
 app = Flask(__name__)
 app.config.from_pyfile("config.py")
 
-# Runs safely every startup: renames Event→Course, adds new columns, drops email_logs
 run_schema_migrations()
 
-app.register_blueprint(courses_bp)
-app.register_blueprint(templates_bp)
-app.register_blueprint(participants_bp)
-app.register_blueprint(certificates_gen_bp)
-app.register_blueprint(verify_bp)
-app.register_blueprint(auth_bp)
 
 def ensure_bootstrap_admin():
     username = os.environ.get("BOOTSTRAP_ADMIN_USER", "").strip()
     password = os.environ.get("BOOTSTRAP_ADMIN_PASSWORD", "").strip()
     email = os.environ.get("BOOTSTRAP_ADMIN_EMAIL", "admin@example.com").strip()
-    if not username or not password:
-        return
-    if get_admin_by_username(username) is None:
-        create_admin(
-            username,
-            email,
-            generate_password_hash(password),
-            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        )
-
-# after run_schema_migrations()
-run_schema_migrations()
-def ensure_bootstrap_admin():
-    username = os.environ.get("BOOTSTRAP_ADMIN_USER", "").strip()
-    password = os.environ.get("BOOTSTRAP_ADMIN_PASSWORD", "").strip()
-    email = os.environ.get("BOOTSTRAP_ADMIN_EMAIL", "admin@example.com").strip()
+    reset = os.environ.get("BOOTSTRAP_RESET", "").strip() == "1"
 
     if not username or not password:
         print("BOOTSTRAP: skipped (USER or PASSWORD env not set)")
         return
 
     existing = get_admin_by_username(username)
-    if existing is not None:
+
+    if existing is not None and not reset:
         print(f"BOOTSTRAP: admin '{username}' already exists")
+        return
+
+    if existing is not None and reset:
+        from database.db import get_connection
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            "UPDATE admins SET password=?, email=? WHERE username=?",
+            (generate_password_hash(password), email, username),
+        )
+        conn.commit()
+        conn.close()
+        print(f"BOOTSTRAP: password reset for '{username}'")
         return
 
     create_admin(
@@ -73,13 +65,23 @@ def ensure_bootstrap_admin():
         datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     )
     print(f"BOOTSTRAP: created admin '{username}'")
-    ensure_bootstrap_admin()
+
+
+ensure_bootstrap_admin()
+
+app.register_blueprint(courses_bp)
+app.register_blueprint(templates_bp)
+app.register_blueprint(participants_bp)
+app.register_blueprint(certificates_gen_bp)
+app.register_blueprint(verify_bp)
+app.register_blueprint(auth_bp)
+
+
 @app.before_request
 def load_logged_in_admin():
     admin_id = session.get("admin_id")
     g.admin = get_admin_by_id(admin_id) if admin_id else None
 
-    # Public routes only (no admin login)
     public_endpoints = {
         "auth.login",
         "verify.verify_search",
@@ -94,7 +96,6 @@ def load_logged_in_admin():
     if request.endpoint.startswith("verify."):
         return
 
-    # Everything else requires admin login
     if "admin_id" not in session:
         return redirect(url_for("auth.login"))
 
@@ -130,10 +131,12 @@ def settings():
                 if file and file.filename != "":
                     upload_folder = os.path.join(app.static_folder, "uploads")
                     os.makedirs(upload_folder, exist_ok=True)
-                    profile_pic_filename = secure_filename(f"{session['admin_id']}_{file.filename}")
+                    profile_pic_filename = secure_filename(
+                        f"{session['admin_id']}_{file.filename}"
+                    )
                     file.save(os.path.join(upload_folder, profile_pic_filename))
 
-                    update_admin_profile(
+                update_admin_profile(
                     session["admin_id"],
                     username=username,
                     email=email,
