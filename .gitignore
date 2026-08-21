@@ -1,0 +1,33 @@
+# Virtual environment
+venv/
+.venv/
+env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Secrets
+.env
+.env.local
+
+# Local database (remove this line if you want DB on GitHub)
+database/certificate.db
+database/*.db-journal
+
+# Generated certificates
+generated_certificates/
+generated/
+
+# Uploads (keep folders, ignore files)
+uploads/templates/*
+!uploads/templates/.gitkeep
+static/uploads/*
+!static/uploads/.gitkeep
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

@@ -1,0 +1,111 @@
+{% extends "layouts/base.html" %}
+{% block title %}Generate Certificate | CertifyPro{% endblock %}
+{% block content %}
+<div class="mb-8">
+    <h1 class="text-3xl font-heading font-bold text-on-surface">Generate Certificate</h1>
+    <p class="text-on-surface-variant mt-1">
+        Fill student details. Positions come from the <strong>Template Designer</strong> (set once per template).
+    </p>
+</div>
+
+{% if error %}
+<div class="mb-6 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-red-800">{{ error }}</div>
+{% endif %}
+
+<form method="POST" action="{{ url_for('certificates_gen.generate_manual') }}" class="bento-card rounded-xl p-6 space-y-6 max-w-4xl">
+    <div>
+        <label class="block text-sm font-medium mb-1">Course *</label>
+        <select name="course_id" required class="w-full border rounded-lg px-3 py-2 bg-surface-container-lowest">
+            <option value="">Select a course (must have a template)</option>
+            {% for c in courses %}
+            <option value="{{ c.id }}" {% if form.get('course_id') == c.id|string %}selected{% endif %}>
+                {{ c.course_name }} {% if c.course_date %}({{ c.course_date }}){% endif %}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-4">
+        <div>
+            <label class="block text-sm font-medium mb-1">Certificate No *</label>
+            <input name="certificate_no" value="{{ form.get('certificate_no','') }}" required placeholder="ODS/STCW/0118/2026"
+                   class="w-full border rounded-lg px-3 py-2 font-mono">
+        </div>
+        <div>
+            <label class="block text-sm font-medium mb-1">Student Name *</label>
+            <input name="student_name" value="{{ form.get('student_name','') }}" required class="w-full border rounded-lg px-3 py-2">
+        </div>
+        <div>
+            <label class="block text-sm font-medium mb-1">Date of Birth</label>
+            <input name="date_of_birth" placeholder="DD/MM/YYYY" value="{{ form.get('date_of_birth','') }}" class="w-full border rounded-lg px-3 py-2">
+        </div>
+        <div>
+            <label class="block text-sm font-medium mb-1">CDC Number</label>
+            <input name="cdc_no" value="{{ form.get('cdc_no','') }}" class="w-full border rounded-lg px-3 py-2">
+        </div>
+        <div>
+            <label class="block text-sm font-medium mb-1">Passport Number</label>
+            <input name="passport_no" value="{{ form.get('passport_no','') }}" class="w-full border rounded-lg px-3 py-2">
+        </div>
+        <div>
+            <label class="block text-sm font-medium mb-1">Competency Grade</label>
+            <input name="competency_grade" value="{{ form.get('competency_grade','') }}" class="w-full border rounded-lg px-3 py-2">
+        </div>
+        <div>
+            <label class="block text-sm font-medium mb-1">Competency No</label>
+            <input name="competency_no" value="{{ form.get('competency_no','') }}" class="w-full border rounded-lg px-3 py-2">
+        </div>
+        <div>
+            <label class="block text-sm font-medium mb-1">INDOS Number</label>
+            <input name="indos_no" value="{{ form.get('indos_no','') }}" class="w-full border rounded-lg px-3 py-2">
+        </div>
+        <div>
+            <label class="block text-sm font-medium mb-1">
+                QR Label (below QR)
+                <span class="text-xs text-slate-500">e.g. ODSMAF-QF-26</span>
+            </label>
+            <input name="qr_label" value="{{ form.get('qr_label','') }}"
+                   placeholder="ODSMAF-QF-26"
+                   class="w-full border rounded-lg px-3 py-2 font-mono">
+        </div>
+        <div>
+            <label class="block text-sm font-medium mb-1">Held From</label>
+            <input name="held_from" placeholder="DD/MM/YYYY" value="{{ form.get('held_from','') }}" class="w-full border rounded-lg px-3 py-2">
+        </div>
+        <div>
+            <label class="block text-sm font-medium mb-1">Held To</label>
+            <input name="held_to" placeholder="DD/MM/YYYY" value="{{ form.get('held_to','') }}" class="w-full border rounded-lg px-3 py-2">
+        </div>
+        <div>
+            <label class="block text-sm font-medium mb-1">Issue day + month</label>
+            <input name="issue_day_month" placeholder="15th JUN" value="{{ form.get('issue_day_month','') }}" class="w-full border rounded-lg px-3 py-2">
+        </div>
+        <div>
+            <label class="block text-sm font-medium mb-1">Issue Year</label>
+            <input name="issue_year" placeholder="2026" value="{{ form.get('issue_year','') }}" class="w-full border rounded-lg px-3 py-2">
+        </div>
+    </div>
+
+    <div>
+        <label class="block text-sm font-medium mb-1">Course / Training Name *</label>
+        <textarea name="course_name" rows="3" required class="w-full border rounded-lg px-3 py-2">{{ form.get('course_name','') }}</textarea>
+    </div>
+
+    <div>
+        <label class="block text-sm font-medium mb-1">STCW / Approval paragraph (optional — leave empty if already on blank)</label>
+        <textarea name="description_below" rows="3" class="w-full border rounded-lg px-3 py-2">{{ form.get('description_below','') }}</textarea>
+    </div>
+
+    <input type="hidden" name="participant_id" value="{{ form.get('participant_id','') }}">
+
+<div class="flex gap-3">
+    <button type="submit" class="px-6 py-3 bg-primary text-on-primary rounded-lg font-medium">
+        Generate Certificate
+    </button>
+    <a href="{{ url_for('participants.participants_list') }}"
+       class="px-6 py-3 border rounded-lg font-medium">
+        Cancel
+    </a>
+</div>
+</form>
+{% endblock %}

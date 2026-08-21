@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Verify Certificate | ODS Maritime Academy</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  body { font-family: Inter, system-ui, sans-serif; }
+</style>
+</head>
+<body class="bg-slate-50 min-h-screen">
+
+<header class="bg-blue-700 text-white shadow">
+  <div class="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
+    <div>
+      <p class="font-bold text-lg">ODS Maritime Academy Foundation</p>
+      <p class="text-blue-100 text-sm">Certificate Verification</p>
+    </div>
+    <nav class="text-sm space-x-4 hidden sm:block">
+      <a href="{{ url_for('verify.verify_search') }}" class="hover:underline">Verify</a>
+    </nav>
+  </div>
+</header>
+
+<main class="max-w-5xl mx-auto px-4 py-10">
+  <h1 class="text-2xl font-bold text-slate-800 mb-6">Certificate:</h1>
+
+  <form method="POST" action="{{ url_for('verify.verify_search') }}" class="flex flex-wrap gap-3 items-end mb-6">
+    <div>
+      <label class="block text-xs text-slate-500 mb-1">Certificate ID</label>
+      <input type="text" name="certificate_id" required
+             placeholder="Enter certificate_id"
+             value="{{ request.form.get('certificate_id','') if request.method=='POST' else '' }}"
+             class="border border-slate-300 rounded-md px-3 py-2 w-56 bg-white">
+    </div>
+    <div>
+      <label class="block text-xs text-slate-500 mb-1">Date of Birth</label>
+      <input type="text" name="date_of_birth"
+             placeholder="dd-mm-yyyy"
+             value="{{ request.form.get('date_of_birth','') if request.method=='POST' else '' }}"
+             class="border border-slate-300 rounded-md px-3 py-2 w-40 bg-white">
+    </div>
+    <button type="submit"
+            class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-5 py-2 rounded-md">
+      Search
+    </button>
+  </form>
+
+  {% if error %}
+  <div class="mb-4 px-4 py-3 rounded-md bg-red-50 border border-red-200 text-red-700 text-sm">
+    {{ error }}
+  </div>
+  {% endif %}
+
+  {% if cert %}
+  <div class="overflow-x-auto bg-white rounded-lg shadow border border-slate-200">
+    <table class="min-w-full text-sm">
+      <thead class="bg-blue-700 text-white">
+        <tr>
+          <th class="px-4 py-3 text-left font-semibold">CERTIFICATE ID</th>
+          <th class="px-4 py-3 text-left font-semibold">NAME</th>
+          <th class="px-4 py-3 text-left font-semibold">EMAIL</th>
+          <th class="px-4 py-3 text-left font-semibold">DATE OF BIRTH</th>
+          <th class="px-4 py-3 text-left font-semibold">CONTACT NO</th>
+          <th class="px-4 py-3 text-left font-semibold">COURSE NAME</th>
+          <th class="px-4 py-3 text-left font-semibold">BARCODE</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="border-t border-slate-100 align-top">
+          <td class="px-4 py-3 font-mono text-slate-800">{{ cert.certificate_id }}</td>
+          <td class="px-4 py-3">{{ cert.student_name }}</td>
+          <td class="px-4 py-3">{{ cert.email or '—' }}</td>
+          <td class="px-4 py-3">{{ cert.date_of_birth or '—' }}</td>
+          <td class="px-4 py-3">{{ cert.contact or '—' }}</td>
+          <td class="px-4 py-3 max-w-xs">{{ cert.course_name }}</td>
+          <td class="px-4 py-3">
+            {% if cert.qr_code %}
+            <img src="{{ url_for('verify.qr_image', filename=cert.qr_code) }}"
+                 alt="QR" class="w-28 h-28 border border-slate-200 mb-2">
+            <a href="{{ url_for('verify.qr_image', filename=cert.qr_code) }}"
+               download
+               class="inline-block bg-green-600 hover:bg-green-700 text-white text-xs font-semibold px-3 py-1.5 rounded">
+              Download
+            </a>
+            {% else %}
+            <span class="text-slate-400">No QR</span>
+            {% endif %}
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="mt-4 grid sm:grid-cols-2 gap-3 text-sm text-slate-700">
+    <div class="bg-white border rounded-lg p-3">
+      <p class="text-xs text-slate-500 uppercase">Organization</p>
+      <p class="font-medium">{{ cert.organization_name }}</p>
+    </div>
+    <div class="bg-white border rounded-lg p-3">
+      <p class="text-xs text-slate-500 uppercase">Held / Issue</p>
+      <p>From {{ cert.held_from or '—' }} to {{ cert.held_to or '—' }}</p>
+      <p>Issue date: {{ cert.issue_date or '—' }}</p>
+    </div>
+  </div>
+  {% endif %}
+</main>
+
+<footer class="text-center text-xs text-slate-500 py-8">
+  © ODS Maritime Academy Foundation. Certificate verification portal.
+</footer>
+</body>
+</html>

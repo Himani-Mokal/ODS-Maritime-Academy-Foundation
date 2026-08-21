@@ -1,0 +1,295 @@
+{% extends "layouts/base.html" %}
+{% block title %}Template Designer | {{ template.template_name }}{% endblock %}
+{% block extra_head %}
+<style>
+  #stage {
+    position: relative;
+    display: inline-block;
+    line-height: 0;
+    box-shadow: 0 4px 24px rgba(0,0,0,.15);
+    background: #fff;
+  }
+  #stage img.bg {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    user-select: none;
+    pointer-events: none;
+  }
+  .ph {
+    position: absolute;
+    cursor: grab;
+    border: 1px dashed #3525cd;
+    background: rgba(53,37,205,.08);
+    color: #000;
+    font-family: Arial, Helvetica, sans-serif;
+    padding: 0 2px;
+    box-sizing: border-box;
+    white-space: pre-wrap;
+    line-height: 1.25;
+    min-width: 16px;
+    z-index: 5;
+    overflow: hidden;
+  }
+  .ph:active { cursor: grabbing; }
+  .ph.active {
+    border-style: solid;
+    outline: 2px solid #3525cd;
+    background: rgba(53,37,205,.18);
+    z-index: 10;
+  }
+  .ph .tag {
+    position: absolute;
+    top: -14px; left: 0;
+    font-size: 9px; font-weight: normal;
+    background: #3525cd; color: #fff;
+    padding: 0 4px; border-radius: 2px;
+    white-space: nowrap; line-height: 1.2;
+    pointer-events: none;
+  }
+  .ph.qr-box {
+    background: rgba(0,0,0,.06);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; color: #555;
+  }
+  #msg { display: none; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+  <div>
+    <h1 class="text-2xl font-heading font-bold">Template Designer</h1>
+    <p class="text-sm text-on-surface-variant">
+      {{ template.template_name }} —
+      Drag placeholders onto the blank lines. Save once. Final certificates use these exact positions.
+    </p>
+  </div>
+  <div class="flex flex-wrap gap-2">
+    <a href="{{ url_for('templates.templates_list') }}" class="px-4 py-2 border rounded-lg text-sm">← Templates</a>
+    <button type="button" id="btnSave" class="px-5 py-2 bg-primary text-on-primary rounded-lg text-sm font-medium shadow">
+      Save Positions
+    </button>
+  </div>
+</div>
+<p id="msg" class="mb-3 text-sm text-green-700 font-medium"></p>
+
+<div class="grid lg:grid-cols-[1fr_280px] gap-6">
+  <div class="overflow-auto bg-slate-100 rounded-xl p-4 flex justify-center">
+    <div id="stage">
+      <img class="bg" id="bg" src="{{ url_for('templates.template_file', template_id=template.id) }}" alt="Template">
+      {% for key, label in catalog %}
+      {% set p = positions.get(key, {}) %}
+      <div class="ph {% if key=='qr_code' %}qr-box{% endif %}"
+           id="ph-{{ key }}"
+           data-key="{{ key }}"
+           data-align="{{ p.get('align','left') }}"
+           data-bold="{{ p.get('bold',1) }}"
+           data-color="{{ p.get('color','#000000') }}"
+           data-x="{{ '%.5f'|format(p.get('x',0.1)) }}"
+           data-y="{{ '%.5f'|format(p.get('y',0.1)) }}"
+           data-w="{{ '%.5f'|format(p.get('w',0.2)) }}"
+           data-h="{{ '%.5f'|format(p.get('h',0.03)) }}"
+           data-fs="{{ '%.5f'|format(p.get('font_size',0.014)) }}">
+        <span class="tag">{{ label }}</span>
+        {% if key == 'qr_code' %}QR{% else %}{{ label }}{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="bento-card rounded-xl p-4 h-fit space-y-4">
+    <h3 class="font-semibold text-sm">Selected field</h3>
+    <p id="selLabel" class="text-xs text-on-surface-variant">Click a placeholder</p>
+
+    <div class="space-y-2 text-sm">
+      <label class="block text-xs">Font size
+        <input type="range" id="ctrlFs" min="7" max="36" value="14" class="w-full">
+        <span id="fsVal" class="text-xs">14px</span>
+      </label>
+      <label class="block text-xs">Align
+        <select id="ctrlAlign" class="w-full border rounded px-2 py-1">
+          <option value="left">Left</option>
+          <option value="center">Center</option>
+          <option value="right">Right</option>
+        </select>
+      </label>
+      <label class="flex items-center gap-2 text-xs">
+        <input type="checkbox" id="ctrlBold" checked> Bold
+      </label>
+      <label class="block text-xs">Color
+        <input type="color" id="ctrlColor" value="#000000" class="w-full h-8 border rounded">
+      </label>
+      <div class="flex gap-2">
+        <button type="button" id="btnWider" class="flex-1 border rounded py-1 text-xs">Wider</button>
+        <button type="button" id="btnNarrower" class="flex-1 border rounded py-1 text-xs">Narrower</button>
+      </div>
+    </div>
+
+    <hr>
+    <p class="text-xs text-on-surface-variant">
+      1. Drag boxes onto underlines<br>
+      2. Adjust size / align / bold<br>
+      3. Click <strong>Save Positions</strong><br>
+      4. Generate certificates — same positions, same engine
+    </p>
+  </div>
+</div>
+
+<script>
+(function () {
+  var stage = document.getElementById('stage');
+  var bg = document.getElementById('bg');
+  var boxes = Array.from(document.querySelectorAll('.ph'));
+  var selected = null;
+  var active = null, sx = 0, sy = 0, ox = 0, oy = 0;
+
+  function applyBox(el) {
+    var x = parseFloat(el.dataset.x) || 0.1;
+    var y = parseFloat(el.dataset.y) || 0.1;
+    var w = parseFloat(el.dataset.w) || 0.2;
+    var h = parseFloat(el.dataset.h) || 0.03;
+    var fs = parseFloat(el.dataset.fs) || 0.014;
+    var align = el.dataset.align || 'left';
+    var bold = el.dataset.bold !== '0';
+    var color = el.dataset.color || '#000000';
+    var stageH = stage.offsetHeight || 800;
+
+    el.style.left = (x * 100) + '%';
+    el.style.top = (y * 100) + '%';
+    el.style.width = (w * 100) + '%';
+    if (el.dataset.key === 'qr_code') {
+      el.style.height = (h * 100) + '%';
+      el.style.fontSize = '11px';
+    } else {
+      el.style.height = 'auto';
+      el.style.fontSize = Math.max(7, fs * stageH) + 'px';
+      el.style.fontWeight = bold ? 'bold' : 'normal';
+      el.style.textAlign = align;
+      el.style.color = color;
+    }
+  }
+
+  function applyAll() { boxes.forEach(applyBox); }
+  applyAll();
+  bg.addEventListener('load', applyAll);
+  window.addEventListener('resize', applyAll);
+
+  function select(el) {
+    boxes.forEach(function (b) { b.classList.remove('active'); });
+    selected = el;
+    if (!el) {
+      document.getElementById('selLabel').textContent = 'Click a placeholder';
+      return;
+    }
+    el.classList.add('active');
+    document.getElementById('selLabel').textContent = el.querySelector('.tag').textContent;
+    var stageH = stage.offsetHeight || 800;
+    var fsPx = Math.round((parseFloat(el.dataset.fs) || 0.014) * stageH);
+    document.getElementById('ctrlFs').value = fsPx;
+    document.getElementById('fsVal').textContent = fsPx + 'px';
+    document.getElementById('ctrlAlign').value = el.dataset.align || 'left';
+    document.getElementById('ctrlBold').checked = el.dataset.bold !== '0';
+    document.getElementById('ctrlColor').value = el.dataset.color || '#000000';
+  }
+
+  boxes.forEach(function (el) {
+    el.addEventListener('mousedown', function (e) {
+      active = el;
+      select(el);
+      sx = e.clientX; sy = e.clientY;
+      ox = parseFloat(String(el.style.left).replace('%', '')) || 0;
+      oy = parseFloat(String(el.style.top).replace('%', '')) || 0;
+      e.preventDefault();
+    });
+    el.addEventListener('click', function (e) { select(el); e.stopPropagation(); });
+  });
+
+  window.addEventListener('mousemove', function (e) {
+    if (!active) return;
+    var w = stage.offsetWidth || 1;
+    var h = stage.offsetHeight || 1;
+    var dx = (e.clientX - sx) / w * 100;
+    var dy = (e.clientY - sy) / h * 100;
+    var nx = Math.max(0, Math.min(95, ox + dx));
+    var ny = Math.max(0, Math.min(98, oy + dy));
+    active.style.left = nx + '%';
+    active.style.top = ny + '%';
+    active.dataset.x = (nx / 100).toFixed(5);
+    active.dataset.y = (ny / 100).toFixed(5);
+  });
+  window.addEventListener('mouseup', function () { active = null; });
+
+  document.getElementById('ctrlFs').addEventListener('input', function () {
+    if (!selected || selected.dataset.key === 'qr_code') return;
+    var px = parseInt(this.value, 10);
+    document.getElementById('fsVal').textContent = px + 'px';
+    var stageH = stage.offsetHeight || 800;
+    selected.dataset.fs = (px / stageH).toFixed(5);
+    applyBox(selected);
+  });
+  document.getElementById('ctrlAlign').addEventListener('change', function () {
+    if (!selected) return;
+    selected.dataset.align = this.value;
+    applyBox(selected);
+  });
+  document.getElementById('ctrlBold').addEventListener('change', function () {
+    if (!selected) return;
+    selected.dataset.bold = this.checked ? '1' : '0';
+    applyBox(selected);
+  });
+  document.getElementById('ctrlColor').addEventListener('input', function () {
+    if (!selected) return;
+    selected.dataset.color = this.value;
+    applyBox(selected);
+  });
+  document.getElementById('btnWider').addEventListener('click', function () {
+    if (!selected) return;
+    var w = Math.min(0.95, (parseFloat(selected.dataset.w) || 0.2) + 0.02);
+    selected.dataset.w = w.toFixed(5);
+    applyBox(selected);
+  });
+  document.getElementById('btnNarrower').addEventListener('click', function () {
+    if (!selected) return;
+    var w = Math.max(0.05, (parseFloat(selected.dataset.w) || 0.2) - 0.02);
+    selected.dataset.w = w.toFixed(5);
+    applyBox(selected);
+  });
+
+  function collect() {
+    var out = {};
+    boxes.forEach(function (el) {
+      var left = parseFloat(String(el.style.left).replace('%', '')) || 0;
+      var top = parseFloat(String(el.style.top).replace('%', '')) || 0;
+      out[el.dataset.key] = {
+        x: +(left / 100).toFixed(5),
+        y: +(top / 100).toFixed(5),
+        w: +(parseFloat(el.dataset.w) || 0.2).toFixed(5),
+        h: +(parseFloat(el.dataset.h) || 0.03).toFixed(5),
+        font_size: +(parseFloat(el.dataset.fs) || 0.014).toFixed(5),
+        align: el.dataset.align || 'left',
+        bold: el.dataset.bold !== '0' ? 1 : 0,
+        color: el.dataset.color || '#000000'
+      };
+    });
+    return out;
+  }
+
+  document.getElementById('btnSave').addEventListener('click', function () {
+    var body = new FormData();
+    body.append('positions_json', JSON.stringify(collect()));
+    fetch('{{ url_for("templates.save_designer_positions", template_id=template.id) }}', {
+      method: 'POST', body: body
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (res) {
+      var m = document.getElementById('msg');
+      m.style.display = 'block';
+      m.textContent = res.message || (res.success ? 'Saved.' : 'Failed');
+      m.className = 'mb-3 text-sm font-medium ' + (res.success ? 'text-green-700' : 'text-red-700');
+    })
+    .catch(function () { alert('Save failed'); });
+  });
+})();
+</script>
+{% endblock %}

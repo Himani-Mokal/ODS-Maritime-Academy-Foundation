@@ -1,0 +1,280 @@
+{% extends "layouts/base.html" %}
+{% block title %}Align Certificate Fields | CertifyPro{% endblock %}
+{% block extra_head %}
+<style>
+  #certStage {
+    position: relative;
+    display: inline-block;
+    max-width: 100%;
+    user-select: none;
+    box-shadow: 0 4px 24px rgba(0,0,0,.12);
+    line-height: 0;
+  }
+  #certStage img.bg {
+    display: block;
+    max-width: 100%;
+    height: auto;
+  }
+  .drag-field {
+    position: absolute;
+    cursor: grab;
+    padding: 0 2px;
+    margin: 0;
+    background: rgba(53, 37, 205, 0.10);
+    border: 1px dashed #3525cd;
+    border-radius: 2px;
+    font-family: Arial, Helvetica, sans-serif;
+    color: #000;
+    font-weight: bold;
+    white-space: pre-wrap;
+    line-height: 1.25;
+    min-width: 20px;
+    z-index: 5;
+    box-sizing: border-box;
+  }
+  .drag-field:active { cursor: grabbing; }
+  .drag-field.active {
+    background: rgba(53, 37, 205, 0.22);
+    border-style: solid;
+    outline: 2px solid #3525cd;
+    z-index: 10;
+  }
+  .drag-field .label-tag {
+    position: absolute;
+    top: -14px;
+    left: 0;
+    font-size: 9px;
+    font-weight: normal;
+    background: #3525cd;
+    color: #fff;
+    padding: 0 3px;
+    border-radius: 2px;
+    white-space: nowrap;
+    pointer-events: none;
+    line-height: 1.2;
+  }
+  #saveMsg { display: none; font-size: 12px; color: #0a7a2f; margin-top: 6px; }
+  .size-btns button {
+    width: 36px; height: 32px; border: 1px solid #ccc; border-radius: 6px;
+    background: #fff; font-size: 16px; font-weight: bold; cursor: pointer;
+  }
+  .size-btns button:hover { background: #f0f0ff; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+  <div>
+    <h1 class="text-2xl font-heading font-bold">Align fields on certificate</h1>
+    <p class="text-sm text-on-surface-variant mt-1">
+      Drag each box onto the blank line. Use + / − for size.
+      {% if has_saved %}<span class="text-green-700 font-medium">Saved alignment loaded.</span>{% endif %}
+    </p>
+  </div>
+  <div class="flex flex-wrap gap-2 items-center">
+    <a href="{{ url_for('certificates_gen.generate_manual') }}" class="px-4 py-2 border rounded-lg text-sm">← Back</a>
+    <div class="size-btns flex gap-1 items-center">
+      <span class="text-xs text-on-surface-variant mr-1">Size:</span>
+      <button type="button" id="btnSizeDown" title="Smaller">−</button>
+      <button type="button" id="btnSizeUp" title="Larger">+</button>
+    </div>
+    <button type="button" id="btnSaveAlign" class="px-4 py-2 border border-primary text-primary rounded-lg text-sm font-medium">
+      Save Alignment
+    </button>
+    <button type="button" id="btnGenerate" class="px-5 py-2 bg-primary text-on-primary rounded-lg font-medium shadow text-sm">
+      Generate Final PDF
+    </button>
+  </div>
+</div>
+<p id="saveMsg">Alignment saved. Final PDF will use these positions.</p>
+
+<div class="grid lg:grid-cols-[1fr_260px] gap-6">
+  <div class="overflow-auto bg-slate-100 rounded-xl p-3 flex justify-center">
+    <div id="certStage">
+      <img class="bg" id="bgImg" src="{{ template_preview_url }}" alt="Certificate template">
+      {% for key, item in fields %}
+      <div class="drag-field"
+           id="field-{{ key }}"
+           data-key="{{ key }}"
+           data-align="{{ item.align }}"
+           data-x="{{ '%.5f'|format(item.x_pct) }}"
+           data-y="{{ '%.5f'|format(item.y_pct) }}"
+           data-w="{{ '%.5f'|format(item.w_pct) }}"
+           data-font="{{ item.font_px }}">
+        <span class="label-tag">{{ item.label }}</span>{{ item.value }}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="bento-card rounded-xl p-4 h-fit space-y-3">
+    <h3 class="font-semibold text-sm">Instructions</h3>
+    <ol class="text-xs text-on-surface-variant list-decimal pl-4 space-y-1">
+      <li>Wait for the certificate image to fully load</li>
+      <li>Drag boxes onto the correct underlines</li>
+      <li>Use + / − to resize the selected field</li>
+      <li>Click <strong>Save Alignment</strong></li>
+      <li>Click <strong>Generate Final PDF</strong></li>
+    </ol>
+    <p class="text-xs border-t pt-3">
+      Certificate No: <span class="font-mono">{{ form_data.certificate_no }}</span>
+    </p>
+    <p class="text-xs text-on-surface-variant">Above QR: <strong>ODSMAF-QF-26</strong></p>
+    <p class="text-xs text-amber-700 bg-amber-50 p-2 rounded">
+      Selected: <span id="selName">none</span>
+    </p>
+  </div>
+</div>
+
+<form id="finalForm" method="POST" action="{{ url_for('certificates_gen.generate_final') }}">
+  {% for k, v in form_data.items() %}
+  <input type="hidden" name="{{ k }}" value="{{ v|e }}">
+  {% endfor %}
+  <input type="hidden" name="template_id" value="{{ template_id }}">
+  <input type="hidden" name="positions_json" id="positionsJson" value="">
+</form>
+
+<script>
+(function () {
+  var stage = document.getElementById('certStage');
+  var img = document.getElementById('bgImg');
+  var fields = Array.from(document.querySelectorAll('.drag-field'));
+  var active = null, selected = null;
+  var startX = 0, startY = 0, origLeftPct = 0, origTopPct = 0;
+
+  function applyInitial() {
+    fields.forEach(function (f) {
+      var x = parseFloat(f.getAttribute('data-x') || '0.1');
+      var y = parseFloat(f.getAttribute('data-y') || '0.1');
+      var w = parseFloat(f.getAttribute('data-w') || '0.3');
+      var font = parseFloat(f.getAttribute('data-font') || '12');
+      var align = f.getAttribute('data-align') || 'left';
+      f.style.left = (x * 100) + '%';
+      f.style.top = (y * 100) + '%';
+      f.style.maxWidth = (w * 100) + '%';
+      f.style.fontSize = font + 'px';
+      f.style.fontWeight = 'bold';
+      f.style.textAlign = align;
+    });
+  }
+  applyInitial();
+  img.addEventListener('load', applyInitial);
+
+  // Positions as fractions of the STAGE (same as SVG page when image fills stage)
+  function collectPositions() {
+    var w = stage.offsetWidth || 1;
+    var h = stage.offsetHeight || 1;
+    var positions = {};
+    fields.forEach(function (f) {
+      // offsetLeft/Top relative to offsetParent (#certStage which is position:relative)
+      var x = f.offsetLeft / w;
+      var y = f.offsetTop / h;
+      var fontPx = parseFloat(f.style.fontSize) || parseFloat(f.getAttribute('data-font') || '12');
+      // Convert preview font px → fraction of stage height (≈ page height)
+      var fontPct = fontPx / h;
+      positions[f.getAttribute('data-key')] = {
+        x: +Math.max(0, Math.min(1, x)).toFixed(5),
+        y: +Math.max(0, Math.min(1, y)).toFixed(5),
+        align: f.getAttribute('data-align') || 'left',
+        font_size_pct: +Math.max(0.005, Math.min(0.05, fontPct)).toFixed(5),
+        w: parseFloat(f.getAttribute('data-w') || '0.3')
+      };
+    });
+    return positions;
+  }
+
+  function selectField(f) {
+    fields.forEach(function (x) { x.classList.remove('active'); });
+    selected = f;
+    if (f) {
+      f.classList.add('active');
+      document.getElementById('selName').textContent = f.querySelector('.label-tag').textContent;
+    } else {
+      document.getElementById('selName').textContent = 'none';
+    }
+  }
+
+  function onDown(e) {
+    active = e.currentTarget;
+    selectField(active);
+    startX = e.clientX;
+    startY = e.clientY;
+    origLeftPct = parseFloat(String(active.style.left).replace('%', '')) || 0;
+    origTopPct = parseFloat(String(active.style.top).replace('%', '')) || 0;
+    e.preventDefault();
+  }
+
+  function onMove(e) {
+    if (!active) return;
+    var w = stage.offsetWidth || 1;
+    var h = stage.offsetHeight || 1;
+    var dx = (e.clientX - startX) / w * 100;
+    var dy = (e.clientY - startY) / h * 100;
+    active.style.left = Math.max(0, Math.min(95, origLeftPct + dx)) + '%';
+    active.style.top = Math.max(0, Math.min(98, origTopPct + dy)) + '%';
+  }
+
+  function onUp() { active = null; }
+
+  fields.forEach(function (f) {
+    f.addEventListener('mousedown', onDown);
+    f.addEventListener('click', function (e) { selectField(f); e.stopPropagation(); });
+  });
+  window.addEventListener('mousemove', onMove);
+  window.addEventListener('mouseup', onUp);
+
+  fields.forEach(function (f) {
+    f.addEventListener('touchstart', function (e) {
+      var t = e.touches[0];
+      active = f;
+      selectField(f);
+      startX = t.clientX; startY = t.clientY;
+      origLeftPct = parseFloat(String(f.style.left).replace('%', '')) || 0;
+      origTopPct = parseFloat(String(f.style.top).replace('%', '')) || 0;
+      e.preventDefault();
+    }, { passive: false });
+  });
+  window.addEventListener('touchmove', function (e) {
+    if (!active) return;
+    var t = e.touches[0];
+    var w = stage.offsetWidth || 1;
+    var h = stage.offsetHeight || 1;
+    var dx = (t.clientX - startX) / w * 100;
+    var dy = (t.clientY - startY) / h * 100;
+    active.style.left = Math.max(0, Math.min(95, origLeftPct + dx)) + '%';
+    active.style.top = Math.max(0, Math.min(98, origTopPct + dy)) + '%';
+    e.preventDefault();
+  }, { passive: false });
+  window.addEventListener('touchend', onUp);
+
+  function changeSize(delta) {
+    if (!selected) { alert('Click a field first'); return; }
+    var cur = parseFloat(selected.style.fontSize) || 12;
+    selected.style.fontSize = Math.max(7, Math.min(36, cur + delta)) + 'px';
+  }
+  document.getElementById('btnSizeUp').addEventListener('click', function () { changeSize(1); });
+  document.getElementById('btnSizeDown').addEventListener('click', function () { changeSize(-1); });
+
+  document.getElementById('btnSaveAlign').addEventListener('click', function () {
+    var positions = collectPositions();
+    var body = new FormData();
+    body.append('template_id', '{{ template_id }}');
+    body.append('positions_json', JSON.stringify(positions));
+    fetch('{{ url_for("certificates_gen.save_alignment") }}', { method: 'POST', body: body })
+      .then(function (r) { return r.json(); })
+      .then(function (res) {
+        var msg = document.getElementById('saveMsg');
+        msg.style.display = 'block';
+        msg.textContent = res.message || 'Saved.';
+        setTimeout(function () { msg.style.display = 'none'; }, 4000);
+      })
+      .catch(function () { alert('Could not save alignment.'); });
+  });
+
+  document.getElementById('btnGenerate').addEventListener('click', function () {
+    var positions = collectPositions();
+    document.getElementById('positionsJson').value = JSON.stringify(positions);
+    document.getElementById('finalForm').submit();
+  });
+})();
+</script>
+{% endblock %}

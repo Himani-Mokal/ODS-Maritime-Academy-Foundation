@@ -1,0 +1,61 @@
+{% extends "layouts/base.html" %}
+{% block title %}Template Positions | CertifyPro{% endblock %}
+{% block content %}
+<div class="mb-6 flex justify-between items-end">
+    <div>
+        <h1 class="text-2xl font-bold">Field Positions — {{ template.template_name }}</h1>
+        <p class="text-sm text-on-surface-variant mt-1">
+            Enter X, Y, Width, Height for each field. Tip: open the template in Paint and read pixel coordinates.
+        </p>
+    </div>
+    <a href="{{ url_for('templates.templates_list') }}" class="px-4 py-2 border rounded-lg text-sm">Back to Templates</a>
+</div>
+
+{% if saved %}
+<div class="mb-4 px-4 py-3 rounded-lg bg-green-50 border border-green-200 text-green-800">Positions saved.</div>
+{% endif %}
+
+<div class="grid lg:grid-cols-2 gap-6">
+    <div class="bento-card rounded-xl p-4 overflow-auto bg-slate-100">
+        <p class="text-xs text-slate-500 mb-2">Template preview ({{ width|int }} × {{ height|int }} px)</p>
+        <div class="bg-white shadow inline-block max-w-full">
+            {{ background_svg|safe }}
+        </div>
+    </div>
+
+    <form method="POST" class="bento-card rounded-xl p-4 space-y-4 max-h-[80vh] overflow-y-auto">
+        {% for key, label in fields %}
+        {% set row = existing.get(key) %}
+        <div class="border rounded-lg p-3">
+            <label class="flex items-center gap-2 font-medium text-sm mb-2">
+                <input type="checkbox" name="{{ key }}__enabled" checked>
+                {{ label }} <span class="text-xs text-slate-400 font-mono">({{ key }})</span>
+            </label>
+            <div class="grid grid-cols-3 gap-2 text-sm">
+                <div><span class="text-xs">X</span><input name="{{ key }}__x" type="number" step="any" value="{{ row.x if row else 100 }}" class="w-full border rounded px-2 py-1"></div>
+                <div><span class="text-xs">Y</span><input name="{{ key }}__y" type="number" step="any" value="{{ row.y if row else 100 }}" class="w-full border rounded px-2 py-1"></div>
+                <div><span class="text-xs">Font</span><input name="{{ key }}__font_size" type="number" step="any" value="{{ row.font_size if row else 18 }}" class="w-full border rounded px-2 py-1"></div>
+                <div><span class="text-xs">W</span><input name="{{ key }}__width" type="number" step="any" value="{{ row.width if row else 200 }}" class="w-full border rounded px-2 py-1"></div>
+                <div><span class="text-xs">H</span><input name="{{ key }}__height" type="number" step="any" value="{{ row.height if row else 30 }}" class="w-full border rounded px-2 py-1"></div>
+                <div>
+                    <span class="text-xs">Align</span>
+                    <select name="{{ key }}__align" class="w-full border rounded px-2 py-1">
+                        {% set al = row.align if row else 'left' %}
+                        <option value="left" {% if al=='left' %}selected{% endif %}>Left</option>
+                        <option value="center" {% if al=='center' %}selected{% endif %}>Center</option>
+                        <option value="right" {% if al=='right' %}selected{% endif %}>Right</option>
+                    </select>
+                </div>
+            </div>
+            <div class="flex gap-3 mt-2 text-xs items-center">
+                <label><input type="checkbox" name="{{ key }}__bold" {% if row and row.bold %}checked{% endif %}> Bold</label>
+                <label><input type="checkbox" name="{{ key }}__italic" {% if row and row.italic %}checked{% endif %}> Italic</label>
+                <label><input type="checkbox" name="{{ key }}__underline" {% if row and row.underline %}checked{% endif %}> Underline</label>
+                <input type="color" name="{{ key }}__color" value="{{ row.color if row else '#111111' }}" class="h-6 w-10 border rounded">
+            </div>
+        </div>
+        {% endfor %}
+        <button type="submit" class="w-full py-3 bg-primary text-on-primary rounded-lg font-medium">Save Positions</button>
+    </form>
+</div>
+{% endblock %}

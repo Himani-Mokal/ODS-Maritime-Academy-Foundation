@@ -1,0 +1,29 @@
+{% extends "layouts/base.html" %}
+{% block title %}Certificate Ready | CertifyPro{% endblock %}
+{% block content %}
+<div class="max-w-3xl mx-auto text-center">
+    <div class="bento-card rounded-xl p-8">
+        <span class="material-symbols-outlined text-5xl text-primary mb-4" style="font-variation-settings:'FILL' 1;">verified</span>
+        <h1 class="text-2xl font-bold mb-2">Certificate Generated</h1>
+        
+
+        <div class="flex flex-wrap justify-center gap-3 mb-8">
+            <a href="{{ url_for('certificates_gen.download_certificate', filename=filename) }}"
+               class="inline-flex items-center gap-2 px-6 py-3 bg-primary text-on-primary rounded-lg font-medium shadow">
+                <span class="material-symbols-outlined">download</span> Download PDF
+            </a>
+            <a href="{{ url_for('certificates_gen.view_certificate', filename=filename) }}" target="_blank"
+               class="inline-flex items-center gap-2 px-6 py-3 border rounded-lg font-medium">
+                <span class="material-symbols-outlined">print</span> Open / Print
+            </a>
+            <a href="{{ url_for('certificates_gen.generate_manual') }}"
+               class="inline-flex items-center gap-2 px-6 py-3 border rounded-lg">
+                Generate Another
+            </a>
+        </div>
+
+        <iframe src="{{ url_for('certificates_gen.view_certificate', filename=filename) }}"
+                class="w-full h-[70vh] border rounded-lg bg-white"></iframe>
+    </div>
+</div>
+{% endblock %}

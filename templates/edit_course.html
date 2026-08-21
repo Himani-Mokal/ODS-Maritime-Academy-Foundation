@@ -1,0 +1,76 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}Edit Course | CertifyPro{% endblock %}
+
+{% block content %}
+
+<div class="mb-8">
+    <h1 class="text-3xl font-heading font-bold text-on-surface tracking-tight">Edit Course</h1>
+    <p class="text-on-surface-variant mt-1">Update course details and assign a certificate template.</p>
+</div>
+
+<form method="POST" class="bento-card rounded-xl p-6 space-y-5 max-w-2xl">
+
+    <div>
+        <label class="block text-sm font-medium text-on-surface mb-1">Course Name *</label>
+        <input type="text" name="course_name" value="{{ course['course_name'] or '' }}" required
+               class="w-full border border-outline-variant rounded-lg px-3 py-2 bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-4">
+        <div>
+            <label class="block text-sm font-medium text-on-surface mb-1">Course Date *</label>
+            <input type="date" name="course_date" value="{{ course['course_date'] or '' }}" required
+                   class="w-full border border-outline-variant rounded-lg px-3 py-2 bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-on-surface mb-1">Organizer *</label>
+            <input type="text" name="organizer" value="{{ course['organizer'] or '' }}" required
+                   class="w-full border border-outline-variant rounded-lg px-3 py-2 bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+        </div>
+    </div>
+
+    <div>
+        <label class="block text-sm font-medium text-on-surface mb-1">Venue</label>
+        <input type="text" name="venue" value="{{ course['venue'] or '' }}"
+               class="w-full border border-outline-variant rounded-lg px-3 py-2 bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+    </div>
+
+    <div>
+        <label class="block text-sm font-medium text-on-surface mb-1">Description</label>
+        <textarea name="description" rows="3"
+                  class="w-full border border-outline-variant rounded-lg px-3 py-2 bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">{{ course['description'] or '' }}</textarea>
+    </div>
+
+    <div>
+        <label class="block text-sm font-medium text-on-surface mb-1">Certificate Template *</label>
+        <select name="template_id"
+                class="w-full border border-outline-variant rounded-lg px-3 py-2 bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+            <option value="">— Select a template —</option>
+            {% for t in templates %}
+            <option value="{{ t.id }}"
+                {% if course['template_id'] and course['template_id']|string == t.id|string %}selected{% endif %}>
+                {{ t.template_name }} ({{ t.template_type }})
+            </option>
+            {% endfor %}
+        </select>
+        <p class="text-xs text-on-surface-variant mt-1">
+            Required for certificate generation.
+            <a href="{{ url_for('templates.templates_list') }}" class="text-primary hover:underline">Manage templates</a>
+        </p>
+    </div>
+
+    <div class="flex gap-3 pt-2">
+        <button type="submit"
+                class="px-6 py-3 bg-primary text-on-primary rounded-lg font-medium shadow hover:bg-primary-container transition-all">
+            Save Changes
+        </button>
+        <a href="{{ url_for('courses.courses') }}"
+           class="px-6 py-3 border border-outline-variant rounded-lg font-medium text-on-surface-variant hover:bg-surface-container-low transition-all">
+            Cancel
+        </a>
+    </div>
+
+</form>
+
+{% endblock %}

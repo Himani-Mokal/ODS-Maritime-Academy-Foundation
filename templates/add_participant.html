@@ -1,0 +1,108 @@
+{% extends "layouts/base.html" %}
+{% block title %}{% if editing %}Edit{% else %}Add{% endif %} Participant | CertifyPro{% endblock %}
+{% block content %}
+<div class="mb-8">
+    <a href="{{ url_for('participants.participants_list') }}" class="text-sm text-primary hover:underline">← Participants</a>
+    <h1 class="text-3xl font-heading font-bold text-on-surface tracking-tight mt-2">
+        {% if editing %}Edit Participant{% else %}Add Participant{% endif %}
+    </h1>
+    <p class="text-on-surface-variant mt-1">Fill student and certificate details. You can generate the certificate from the list after saving.</p>
+</div>
+
+{% if error %}
+<div class="mb-4 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-red-800">{{ error }}</div>
+{% endif %}
+
+<form method="POST" class="bento-card rounded-xl p-8 space-y-5 max-w-4xl">
+    <div>
+        <label class="block text-xs font-semibold uppercase text-on-surface-variant mb-1">Course *</label>
+        <select name="course_id" required class="w-full px-4 py-2.5 border rounded-lg bg-surface-container-lowest">
+            <option value="">-- Select Course --</option>
+            {% for course in courses %}
+            <option value="{{ course['id'] }}" {% if form.get('course_id') == course['id']|string %}selected{% endif %}>
+                {{ course['course_name'] }}{% if course['course_date'] %} ({{ course['course_date'] }}){% endif %}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-4">
+        <div>
+            <label class="block text-xs font-semibold uppercase text-on-surface-variant mb-1">Full Name *</label>
+            <input name="name" required value="{{ form.get('name','') }}" class="w-full px-4 py-2.5 border rounded-lg">
+        </div>
+        <div>
+            <label class="block text-xs font-semibold uppercase text-on-surface-variant mb-1">Email</label>
+            <input type="email" name="email" value="{{ form.get('email','') }}" class="w-full px-4 py-2.5 border rounded-lg">
+        </div>
+        <div>
+            <label class="block text-xs font-semibold uppercase text-on-surface-variant mb-1">Contact No</label>
+            <input name="contact_no" value="{{ form.get('contact_no','') }}" class="w-full px-4 py-2.5 border rounded-lg">
+        </div>
+        <div>
+            <label class="block text-xs font-semibold uppercase text-on-surface-variant mb-1">Certificate No</label>
+            <input name="certificate_no" value="{{ form.get('certificate_no','') }}" placeholder="ODS/STCW/0118/2026" class="w-full px-4 py-2.5 border rounded-lg font-mono">
+        </div>
+        <div>
+            <label class="block text-xs font-semibold uppercase text-on-surface-variant mb-1">Date of Birth</label>
+            <input name="date_of_birth" value="{{ form.get('date_of_birth','') }}" placeholder="DD/MM/YYYY" class="w-full px-4 py-2.5 border rounded-lg">
+        </div>
+        <div>
+            <label class="block text-xs font-semibold uppercase text-on-surface-variant mb-1">CDC No</label>
+            <input name="cdc_no" value="{{ form.get('cdc_no','') }}" class="w-full px-4 py-2.5 border rounded-lg">
+        </div>
+        <div>
+            <label class="block text-xs font-semibold uppercase text-on-surface-variant mb-1">Passport No</label>
+            <input name="passport_no" value="{{ form.get('passport_no','') }}" class="w-full px-4 py-2.5 border rounded-lg">
+        </div>
+        <div>
+            <label class="block text-xs font-semibold uppercase text-on-surface-variant mb-1">Competency Grade</label>
+            <input name="competency_grade" value="{{ form.get('competency_grade','') }}" class="w-full px-4 py-2.5 border rounded-lg">
+        </div>
+        <div>
+            <label class="block text-xs font-semibold uppercase text-on-surface-variant mb-1">Competency No</label>
+            <input name="competency_no" value="{{ form.get('competency_no','') }}" class="w-full px-4 py-2.5 border rounded-lg">
+        </div>
+        <div>
+            <label class="block text-xs font-semibold uppercase text-on-surface-variant mb-1">INDOS No</label>
+            <input name="indos_no" value="{{ form.get('indos_no','') }}" class="w-full px-4 py-2.5 border rounded-lg">
+        </div>
+        <div>
+            <label class="block text-xs font-semibold uppercase text-on-surface-variant mb-1">Held From</label>
+            <input name="held_from" value="{{ form.get('held_from','') }}" placeholder="DD/MM/YYYY" class="w-full px-4 py-2.5 border rounded-lg">
+        </div>
+        <div>
+            <label class="block text-xs font-semibold uppercase text-on-surface-variant mb-1">Held To</label>
+            <input name="held_to" value="{{ form.get('held_to','') }}" placeholder="DD/MM/YYYY" class="w-full px-4 py-2.5 border rounded-lg">
+        </div>
+        <div>
+            <label class="block text-xs font-semibold uppercase text-on-surface-variant mb-1">Issue Day/Month</label>
+            <input name="issue_day_month" value="{{ form.get('issue_day_month','') }}" placeholder="15th June" class="w-full px-4 py-2.5 border rounded-lg">
+        </div>
+        <div>
+            <label class="block text-xs font-semibold uppercase text-on-surface-variant mb-1">Issue Year</label>
+            <input name="issue_year" value="{{ form.get('issue_year','') }}" placeholder="2026" class="w-full px-4 py-2.5 border rounded-lg">
+        </div>
+        <div>
+            <label class="block text-xs font-semibold uppercase text-on-surface-variant mb-1">QR Label</label>
+            <input name="qr_label" value="{{ form.get('qr_label','') }}" placeholder="ODSMAF-QF-26" class="w-full px-4 py-2.5 border rounded-lg font-mono">
+        </div>
+    </div>
+
+    <div>
+        <label class="block text-xs font-semibold uppercase text-on-surface-variant mb-1">Course / Training Name</label>
+        <textarea name="course_name" rows="3" class="w-full px-4 py-2.5 border rounded-lg">{{ form.get('course_name','') }}</textarea>
+    </div>
+    <div>
+        <label class="block text-xs font-semibold uppercase text-on-surface-variant mb-1">Description (optional)</label>
+        <textarea name="description_below" rows="3" class="w-full px-4 py-2.5 border rounded-lg">{{ form.get('description_below','') }}</textarea>
+    </div>
+
+    <div class="flex gap-3 pt-2">
+        <button type="submit" class="px-6 py-3 bg-primary text-on-primary rounded-lg font-medium">
+            {% if editing %}Save Changes{% else %}Save Participant{% endif %}
+        </button>
+        <a href="{{ url_for('participants.participants_list') }}" class="px-6 py-3 border rounded-lg font-medium">Cancel</a>
+    </div>
+</form>
+{% endblock %}
